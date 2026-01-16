@@ -5,14 +5,9 @@ import { z } from "zod";
 import * as cheerio from "cheerio";
 import { Readability } from "@mozilla/readability";
 import { JSDOM } from "jsdom";
-import { authenticate, isAuthEnabled, type AuthResult } from "./auth.js";
 
-// Google API credentials can come from environment (for local dev) or request parameters (for hosted)
-const DEFAULT_GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-const DEFAULT_GOOGLE_CX = process.env.GOOGLE_CX;
-
-// Store auth context (in a real implementation, you'd use request context)
-let currentAuthContext: AuthResult | null = null;
+const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+const GOOGLE_CX = process.env.GOOGLE_CX;
 
 interface SearchResult {
   title: string;
@@ -51,18 +46,13 @@ type SearchType = "web" | "news" | "images";
 async function googleSearch(
   query: string,
   numResults: number = 10,
-  searchType: SearchType = "web",
-  apiKey?: string,
-  cx?: string
+  searchType: SearchType = "web"
 ): Promise<SearchResult[]> {
-  const GOOGLE_API_KEY = apiKey || DEFAULT_GOOGLE_API_KEY;
-  const GOOGLE_CX = cx || DEFAULT_GOOGLE_CX;
-
   if (!GOOGLE_API_KEY) {
-    throw new Error("GOOGLE_API_KEY is required (provide via environment variable or request parameter)");
+    throw new Error("GOOGLE_API_KEY environment variable is required");
   }
   if (!GOOGLE_CX) {
-    throw new Error("GOOGLE_CX is required (provide via environment variable or request parameter)");
+    throw new Error("GOOGLE_CX environment variable is required");
   }
 
   // Build the Google Custom Search API URL
@@ -340,23 +330,10 @@ server.tool(
       .max(10)
       .default(10)
       .describe("Number of results to return (1-10, default: 10)"),
-    google_api_key: z
-      .string()
-      .optional()
-      .describe("Google Custom Search API key (optional, uses server default if not provided)"),
-    google_cx: z
-      .string()
-      .optional()
-      .describe("Google Custom Search Engine ID (optional, uses server default if not provided)"),
   },
-  async ({ query, num_results = 10, google_api_key, google_cx }: { 
-    query: string; 
-    num_results?: number;
-    google_api_key?: string;
-    google_cx?: string;
-  }) => {
+  async ({ query, num_results = 10 }: { query: string; num_results?: number }) => {
     try {
-      const searchResults = await googleSearch(query, num_results, "web", google_api_key, google_cx);
+      const searchResults = await googleSearch(query, num_results, "web");
 
       if (searchResults.length === 0) {
         return {
@@ -422,14 +399,6 @@ server.tool(
       .string()
       .optional()
       .describe("Comma-separated list of domains to exclude (e.g., 'pinterest.com,facebook.com')"),
-    google_api_key: z
-      .string()
-      .optional()
-      .describe("Google Custom Search API key (optional, uses server default if not provided)"),
-    google_cx: z
-      .string()
-      .optional()
-      .describe("Google Custom Search Engine ID (optional, uses server default if not provided)"),
   },
   async ({
     query,
@@ -438,8 +407,6 @@ server.tool(
     search_type = "web",
     include_domains,
     exclude_domains,
-    google_api_key,
-    google_cx,
   }: {
     query: string;
     num_results?: number;
@@ -447,8 +414,6 @@ server.tool(
     search_type?: SearchType;
     include_domains?: string;
     exclude_domains?: string;
-    google_api_key?: string;
-    google_cx?: string;
   }) => {
     try {
       // Build query with domain filters
@@ -463,7 +428,7 @@ server.tool(
       }
 
       // Step 1: Google search
-      const searchResults = await googleSearch(searchQuery, num_results, search_type, google_api_key, google_cx);
+      const searchResults = await googleSearch(searchQuery, num_results, search_type);
 
       if (searchResults.length === 0) {
         return {
@@ -520,24 +485,14 @@ server.tool(
       .max(100000)
       .default(30000)
       .describe("Maximum characters per article (default: 30000)"),
-    google_api_key: z
-      .string()
-      .optional()
-      .describe("Google Custom Search API key (optional, uses server default if not provided)"),
-    google_cx: z
-      .string()
-      .optional()
-      .describe("Google Custom Search Engine ID (optional, uses server default if not provided)"),
   },
-  async ({ query, num_results = 10, max_content_per_page = 30000, google_api_key, google_cx }: {
+  async ({ query, num_results = 10, max_content_per_page = 30000 }: {
     query: string;
     num_results?: number;
     max_content_per_page?: number;
-    google_api_key?: string;
-    google_cx?: string;
   }) => {
     try {
-      const searchResults = await googleSearch(query, num_results, "news", google_api_key, google_cx);
+      const searchResults = await googleSearch(query, num_results, "news");
 
       if (searchResults.length === 0) {
         return {
