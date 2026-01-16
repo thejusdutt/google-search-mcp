@@ -15,6 +15,43 @@ An MCP (Model Context Protocol) server that performs comprehensive web searches 
 - **Retry Logic** - Automatic retries with exponential backoff for reliability
 - **Controlled Concurrency** - Fetches pages in batches to avoid overwhelming servers
 
+## Deployment Modes
+
+This MCP server supports two deployment modes:
+
+### 1. Local/Third-Party Mode (Default)
+Run via npx with user-provided Google API credentials:
+```json
+{
+  "mcpServers": {
+    "google-search": {
+      "command": "npx",
+      "args": ["-y", "@thejusdutt/google-search-mcp"],
+      "env": {
+        "GOOGLE_API_KEY": "your-google-api-key",
+        "GOOGLE_CX": "your-search-engine-id"
+      }
+    }
+  }
+}
+```
+
+### 2. Hosted Mode with TUI AD Authentication
+Deploy to infrastructure with TUI Active Directory SSO authentication:
+
+**Environment Variables:**
+- `HOSTED_MODE=true` - Enables authentication
+- `HEALTH_CHECK_TOKEN` - Bearer token for MCP Registry health checks
+- `GOOGLE_API_KEY` (optional) - Default API key if users don't provide their own
+- `GOOGLE_CX` (optional) - Default Search Engine ID if users don't provide their own
+
+**Authentication:**
+- Health checks use bearer token authentication
+- End users authenticate via TUI AD (JWT tokens validated against `https://idp.devops.tui/keys`)
+- Users can pass their own `google_api_key` and `google_cx` parameters with each tool call
+
+**Gateway URL:** `https://mcp.devops.tui/google-search/mcp`
+
 ## Prerequisites
 
 ### Get Google Custom Search API Credentials
@@ -83,12 +120,21 @@ Simple Google search for quick lookups. Returns snippets only without fetching f
 |-----------|------|---------|-------------|
 | `query` | string | required | The search query |
 | `num_results` | number | 10 | Number of results (1-10) |
+| `google_api_key` | string | - | Google API key (optional, uses server default) |
+| `google_cx` | string | - | Search Engine ID (optional, uses server default) |
 
 **Example:**
 
 ```javascript
 // Quick search with snippets only
 google_search({ query: "React hooks tutorial" })
+
+// With custom API credentials
+google_search({ 
+  query: "React hooks tutorial",
+  google_api_key: "your-key",
+  google_cx: "your-cx"
+})
 ```
 
 ### `deep_search`
@@ -103,6 +149,8 @@ Comprehensive web search with full content extraction.
 | `search_type` | string | "web" | Search type: "web", "news", or "images" |
 | `include_domains` | string | - | Comma-separated domains to include |
 | `exclude_domains` | string | - | Comma-separated domains to exclude |
+| `google_api_key` | string | - | Google API key (optional, uses server default) |
+| `google_cx` | string | - | Search Engine ID (optional, uses server default) |
 
 **Examples:**
 
@@ -135,6 +183,8 @@ Convenience wrapper for news search. Equivalent to calling `deep_search` with `s
 | `query` | string | required | The news topic to search |
 | `num_results` | number | 10 | Number of articles (1-10) |
 | `max_content_per_page` | number | 30000 | Max characters per article |
+| `google_api_key` | string | - | Google API key (optional, uses server default) |
+| `google_cx` | string | - | Search Engine ID (optional, uses server default) |
 
 **Example:**
 
